@@ -4,7 +4,7 @@
 ' File    : classes/class.http.asp
 ' Version : 3.0.0
 '====================================================================
-Option Explicit
+'Option Explicit
 
 Class HttpResponse
 
