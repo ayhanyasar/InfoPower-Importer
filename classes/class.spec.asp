@@ -4,7 +4,7 @@
 ' File    : classes/class.spec.asp
 ' Part    : 1
 '====================================================================
-Option Explicit
+'Option Explicit
 
 Class Specification
 
