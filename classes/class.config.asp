@@ -1,170 +1,190 @@
 <%
-'#######################################################################
-'
-'  InfoPower Importer PRO v3.0
-'  File : class.config.asp
-'  Description : Global Configuration
-'
-'#######################################################################
-
+'====================================================================
+' InfoPower Importer PRO v3.0
+' File    : classes/class.config.asp
+'====================================================================
 Option Explicit
 
-'=======================================================================
-' APPLICATION
-'=======================================================================
+Class Config
 
-Const APP_NAME               = "InfoPower Importer PRO"
-Const APP_VERSION            = "3.0.0"
-Const APP_BUILD              = "20260807"
+    Private mItems
 
-'=======================================================================
-' SOURCE WEBSITE
-'=======================================================================
+    Private Sub Class_Initialize()
 
-Const SOURCE_NAME            = "Genpower"
+        Set mItems = Server.CreateObject("Scripting.Dictionary")
+        mItems.CompareMode = 1
 
-Const SOURCE_SITE            = "https://www.genpower.com.tr"
+        LoadDefaults
 
-Const PRODUCT_LIST_URL       = _
-"https://www.genpower.com.tr/tr/urunler/dizel-jeneratorleri"
+    End Sub
 
-Const USER_AGENT             = _
-"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    Private Sub Class_Terminate()
 
-'=======================================================================
-' IMPORT SETTINGS
-'=======================================================================
+        If IsObject(mItems) Then
+            mItems.RemoveAll
+            Set mItems = Nothing
+        End If
 
-Const IMPORT_PRODUCTS        = True
-Const IMPORT_IMAGES          = True
-Const IMPORT_PDF             = True
-Const IMPORT_SPECS           = True
-Const IMPORT_DESCRIPTION     = True
-Const IMPORT_SEO             = True
+    End Sub
 
-Const UPDATE_EXISTING        = True
-Const INSERT_NEW_PRODUCTS    = True
-Const DELETE_MISSING         = False
+    Private Sub LoadDefaults()
 
-'=======================================================================
-' HTTP
-'=======================================================================
+        '----------------------------------------------------------
+        ' Application
+        '----------------------------------------------------------
+        SetValue "APP_NAME"             ,"InfoPower Importer PRO"
+        SetValue "APP_VERSION"          ,"3.0"
+        SetValue "APP_CHARSET"          ,"utf-8"
+        SetValue "APP_TIMEZONE"         ,"Turkey Standard Time"
+        SetValue "APP_LANGUAGE"         ,"tr"
+        SetValue "APP_DEBUG"            ,False
 
-Const HTTP_CONNECT_TIMEOUT   = 30000
-Const HTTP_SEND_TIMEOUT      = 30000
-Const HTTP_RECEIVE_TIMEOUT   = 60000
-Const HTTP_RESPONSE_TIMEOUT  = 60000
+        '----------------------------------------------------------
+        ' Paths
+        '----------------------------------------------------------
+        SetValue "ROOT_PATH"            ,Server.MapPath("/")
+        SetValue "CACHE_PATH"           ,Server.MapPath("/cache")
+        SetValue "LOG_PATH"             ,Server.MapPath("/logs")
+        SetValue "TEMP_PATH"            ,Server.MapPath("/temp")
+        SetValue "IMAGE_PATH"           ,Server.MapPath("/images")
+        SetValue "CLASS_PATH"           ,Server.MapPath("/classes")
 
-'=======================================================================
-' CACHE
-'=======================================================================
+        '----------------------------------------------------------
+        ' Cache
+        '----------------------------------------------------------
+        SetValue "CACHE_ENABLED"        ,True
+        SetValue "CACHE_HTML"           ,Server.MapPath("/cache/index.html")
+        SetValue "CACHE_EXPIRE_MINUTE"  ,60
 
-Const CACHE_FOLDER           = "cache"
-Const CACHE_INDEX_FILE       = "index.html"
-Const CACHE_PRODUCT_FOLDER   = "products"
+        '----------------------------------------------------------
+        ' HTTP
+        '----------------------------------------------------------
+        SetValue "HTTP_TIMEOUT_RESOLVE" ,30000
+        SetValue "HTTP_TIMEOUT_CONNECT" ,30000
+        SetValue "HTTP_TIMEOUT_SEND"    ,60000
+        SetValue "HTTP_TIMEOUT_RECEIVE" ,60000
 
-'=======================================================================
-' IMAGE
-'=======================================================================
+        SetValue "HTTP_USER_AGENT", _
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0 Safari/537.36"
 
-Const IMAGE_FOLDER           = "/images/products/"
-Const IMAGE_MAX_COUNT        = 30
+        SetValue "HTTP_ACCEPT"          ,"*/*"
+        SetValue "HTTP_ENCODING"        ,"gzip, deflate"
+        SetValue "HTTP_LANGUAGE"        ,"tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+        SetValue "HTTP_IGNORE_SSL"      ,True
 
-'=======================================================================
-' PDF
-'=======================================================================
+        '----------------------------------------------------------
+        ' Import
+        '----------------------------------------------------------
+        SetValue "IMPORT_BASE_URL"      ,"https://www.genpower.com.tr"
+        SetValue "IMPORT_LIST_URL"      ,"https://www.genpower.com.tr/tr/urunler/dizel-jeneratorleri"
+        SetValue "IMPORT_DELAY_MS"      ,0
+        SetValue "IMPORT_RETRY"         ,3
+        SetValue "IMPORT_SAVE_HTML"     ,True
 
-Const PDF_FOLDER             = "/downloads/"
+        '----------------------------------------------------------
+        ' Database
+        '----------------------------------------------------------
+        SetValue "DB_PROVIDER"          ,"SQLOLEDB"
 
-'=======================================================================
-' LOG
-'=======================================================================
+        SetValue "DB_SERVER"            ,"localhost"
+        SetValue "DB_DATABASE"          ,"InfoPower"
+        SetValue "DB_USER"              ,"sa"
+        SetValue "DB_PASSWORD"          ,""
 
-Const LOG_BROWSER            = True
-Const LOG_DATABASE           = True
+        SetValue "DB_TIMEOUT"           ,30
 
-'=======================================================================
-' DATABASE
-'=======================================================================
+        '----------------------------------------------------------
+        ' Tables
+        '----------------------------------------------------------
+        SetValue "TABLE_PRODUCTS"       ,"products"
+        SetValue "TABLE_CATEGORIES"     ,"categories"
+        SetValue "TABLE_BRANDS"         ,"brands"
+        SetValue "TABLE_IMAGES"         ,"product_images"
+        SetValue "TABLE_LOG"            ,"import_logs"
 
-Const DB_SCHEMA              = "hatmedya_Hknp-3bWc"
+    End Sub
 
-Const TBL_PRODUCTS           = "[" & DB_SCHEMA & "].[importer_products]"
-Const TBL_IMAGES             = "[" & DB_SCHEMA & "].[importer_product_images]"
-Const TBL_SPECS              = "[" & DB_SCHEMA & "].[importer_product_specs]"
-Const TBL_FILES              = "[" & DB_SCHEMA & "].[importer_product_files]"
-Const TBL_QUEUE              = "[" & DB_SCHEMA & "].[importer_queue]"
-Const TBL_HISTORY            = "[" & DB_SCHEMA & "].[importer_history]"
-Const TBL_LOGS               = "[" & DB_SCHEMA & "].[importer_logs]"
-Const TBL_SETTINGS           = "[" & DB_SCHEMA & "].[importer_settings]"
-Const TBL_BRANDS             = "[" & DB_SCHEMA & "].[importer_brands]"
-Const TBL_CATEGORIES         = "[" & DB_SCHEMA & "].[importer_categories]"
+    Public Sub SetValue(Key,Value)
 
-'=======================================================================
-' PRODUCT STATUS
-'=======================================================================
+        Key=LCase(Trim(CStr(Key)))
 
-Const STATUS_PASSIVE         = 0
-Const STATUS_ACTIVE          = 1
+        If mItems.Exists(Key) Then
+            mItems(Key)=Value
+        Else
+            mItems.Add Key,Value
+        End If
 
-'=======================================================================
-' QUEUE STATUS
-'=======================================================================
+    End Sub
 
-Const QUEUE_WAITING          = 0
-Const QUEUE_RUNNING          = 1
-Const QUEUE_COMPLETED        = 2
-Const QUEUE_ERROR            = 3
+    Public Function GetValue(Key)
 
-'=======================================================================
-' GLOBAL VARIABLES
-'=======================================================================
+        Key=LCase(Trim(CStr(Key)))
 
-Dim AppRoot
-Dim CacheRoot
-Dim CacheProductRoot
-Dim ImageRoot
-Dim PdfRoot
+        If mItems.Exists(Key) Then
+            GetValue=mItems(Key)
+        Else
+            GetValue=Null
+        End If
 
-Dim ImportStartTime
+    End Function
 
-Dim TotalProducts
-Dim ImportedProducts
-Dim UpdatedProducts
-Dim ErrorProducts
+    Public Function Exists(Key)
 
-Dim TotalImages
-Dim TotalPDF
+        Exists=mItems.Exists(LCase(Trim(CStr(Key))))
 
-'=======================================================================
-' INITIALIZE
-'=======================================================================
+    End Function
 
-Sub Config_Initialize()
+    Public Sub Remove(Key)
 
-    AppRoot = Server.MapPath("..")
+        Key=LCase(Trim(CStr(Key)))
 
-    CacheRoot = AppRoot & "\" & CACHE_FOLDER
+        If mItems.Exists(Key) Then
+            mItems.Remove Key
+        End If
 
-    CacheProductRoot = CacheRoot & "\" & CACHE_PRODUCT_FOLDER
+    End Sub
 
-    ImageRoot = Server.MapPath(IMAGE_FOLDER)
+    Public Sub Clear()
 
-    PdfRoot = Server.MapPath(PDF_FOLDER)
+        mItems.RemoveAll
 
-    ImportStartTime = Now()
+    End Sub
 
-    TotalProducts = 0
-    ImportedProducts = 0
-    UpdatedProducts = 0
-    ErrorProducts = 0
+    Public Property Get Count()
 
-    TotalImages = 0
-    TotalPDF = 0
+        Count=mItems.Count
 
-End Sub
+    End Property
 
-'#######################################################################
-' END OF FILE
-'#######################################################################
+    Public Function ConnectionString()
+
+        ConnectionString = _
+            "Provider=" & GetValue("DB_PROVIDER") & ";" & _
+            "Data Source=" & GetValue("DB_SERVER") & ";" & _
+            "Initial Catalog=" & GetValue("DB_DATABASE") & ";" & _
+            "User ID=" & GetValue("DB_USER") & ";" & _
+            "Password=" & GetValue("DB_PASSWORD") & ";" & _
+            "Persist Security Info=False;"
+
+    End Function
+
+    Public Function CacheFile(FileName)
+
+        CacheFile = GetValue("CACHE_PATH") & "\" & FileName
+
+    End Function
+
+    Public Function LogFile(FileName)
+
+        LogFile = GetValue("LOG_PATH") & "\" & FileName
+
+    End Function
+
+    Public Function TempFile(FileName)
+
+        TempFile = GetValue("TEMP_PATH") & "\" & FileName
+
+    End Function
+
+End Class
 %>
