@@ -4,7 +4,7 @@
 ' File    : classes/class.queue.asp
 ' Part    : 1
 '====================================================================
-Option Explicit
+'Option Explicit
 
 Class Queue
 
