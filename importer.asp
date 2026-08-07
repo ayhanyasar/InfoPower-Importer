@@ -1,5 +1,5 @@
 <%
-Option Explicit
+'Option Explicit
 
 Response.Buffer = True
 Response.Charset = "utf-8"
