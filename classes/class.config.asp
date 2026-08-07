@@ -3,7 +3,7 @@
 ' InfoPower Importer PRO v3.0
 ' File    : classes/class.config.asp
 '====================================================================
-Option Explicit
+'Option Explicit
 
 Class Config
 
