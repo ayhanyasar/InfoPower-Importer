@@ -1,279 +1,583 @@
 <%
-'#######################################################################
-'
+'====================================================================
 ' InfoPower Importer PRO v3.0
-' File : class.database.asp
-' Description : Database Layer
-'
-'#######################################################################
-
+' File    : classes/class.database.asp
+' Part    : 1
+'====================================================================
 Option Explicit
 
-Dim Conn
-Dim ConnStr
+Class Database
 
-'=======================================================================
-' OPEN CONNECTION
-'=======================================================================
+    Private mConn
+    Private mConnectionString
+    Private mCommandTimeout
+    Private mConnectionTimeout
+    Private mLastError
+    Private mLastSQL
+    Private mAffectedRows
+    Private mInTransaction
 
-Sub DB_Open()
+    Private Const adCmdText        = 1
+    Private Const adOpenForwardOnly= 0
+    Private Const adOpenStatic     = 3
+    Private Const adLockReadOnly   = 1
+    Private Const adLockOptimistic = 3
+    Private Const adUseClient      = 3
 
-    If IsObject(Conn) Then Exit Sub
+    Private Sub Class_Initialize()
 
-    ConnStr = Trim(Application("ConnectionString"))
+        mConnectionString  = ""
+        mCommandTimeout    = 60
+        mConnectionTimeout = 30
+        mLastError         = ""
+        mLastSQL           = ""
+        mAffectedRows      = 0
+        mInTransaction     = False
 
-    If ConnStr = "" Then
+    End Sub
 
-        Err.Raise vbObjectError + 1000, _
-                  "DB_Open", _
-                  "Application(""ConnectionString"") boş."
+    Private Sub Class_Terminate()
 
-    End If
+        Close
 
-    Set Conn = Server.CreateObject("ADODB.Connection")
+    End Sub
 
-    Conn.ConnectionTimeout = 30
-    Conn.CommandTimeout = 600
 
-    Conn.Open ConnStr
 
-End Sub
+    Public Property Let ConnectionString(Value)
 
-'=======================================================================
-' CLOSE CONNECTION
-'=======================================================================
+        mConnectionString = CStr(Value)
 
-Sub DB_Close()
+    End Property
 
-    On Error Resume Next
 
-    If IsObject(Conn) Then
 
-        If Conn.State = 1 Then
-            Conn.Close
+    Public Property Get ConnectionString()
+
+        ConnectionString = mConnectionString
+
+    End Property
+
+
+
+    Public Property Let CommandTimeout(Value)
+
+        mCommandTimeout = CLng(Value)
+
+    End Property
+
+
+
+    Public Property Get CommandTimeout()
+
+        CommandTimeout = mCommandTimeout
+
+    End Property
+
+
+
+    Public Property Get LastError()
+
+        LastError = mLastError
+
+    End Property
+
+
+
+    Public Property Get LastSQL()
+
+        LastSQL = mLastSQL
+
+    End Property
+
+
+
+    Public Property Get AffectedRows()
+
+        AffectedRows = mAffectedRows
+
+    End Property
+
+
+
+    Public Function Open()
+
+        On Error Resume Next
+
+        If IsObject(mConn) Then
+
+            If mConn.State = 1 Then
+
+                Open = True
+                Exit Function
+
+            End If
+
         End If
 
-        Set Conn = Nothing
+        Set mConn = Server.CreateObject("ADODB.Connection")
 
-    End If
+        mConn.ConnectionTimeout = mConnectionTimeout
+        mConn.CommandTimeout    = mCommandTimeout
 
-End Sub
+        mConn.Open mConnectionString
 
-'=======================================================================
-' BEGIN TRANSACTION
-'=======================================================================
+        If Err.Number <> 0 Then
 
-Sub DB_Begin()
+            mLastError = Err.Description
+            Open = False
+            Err.Clear
+            Exit Function
 
-    If Conn.State = 1 Then
-        Conn.BeginTrans
-    End If
+        End If
 
-End Sub
+        Open = True
 
-'=======================================================================
-' COMMIT
-'=======================================================================
+    End Function
 
-Sub DB_Commit()
 
-    If Conn.State = 1 Then
-        Conn.CommitTrans
-    End If
 
-End Sub
+    Public Sub Close()
 
-'=======================================================================
-' ROLLBACK
-'=======================================================================
+        On Error Resume Next
 
-Sub DB_Rollback()
+        If IsObject(mConn) Then
 
-    If Conn.State = 1 Then
-        Conn.RollbackTrans
-    End If
+            If mConn.State = 1 Then
+                mConn.Close
+            End If
 
-End Sub
+            Set mConn = Nothing
 
-'=======================================================================
-' EXECUTE SQL
-'=======================================================================
+        End If
 
-Sub DB_Execute(SQL)
+        Err.Clear
 
-    Conn.Execute SQL
+    End Sub
 
-End Sub
 
-'=======================================================================
-' GET RECORDSET
-'=======================================================================
 
-Function DB_Recordset(SQL)
+    Public Function IsOpen()
 
-    Dim RS
+        If IsObject(mConn) Then
 
-    Set RS = Server.CreateObject("ADODB.Recordset")
+            IsOpen = (mConn.State = 1)
 
-    RS.CursorLocation = 3
+        Else
 
-    RS.Open SQL, _
-            Conn, _
-            0, _
-            1
+            IsOpen = False
 
-    Set DB_Recordset = RS
+        End If
 
-End Function
+    End Function
 
-'=======================================================================
-' GET FIRST VALUE
-'=======================================================================
 
-Function DB_Value(SQL)
 
-    Dim RS
+    Public Function Execute(SQL)
 
-    DB_Value = Null
+        Dim Records
 
-    Set RS = Conn.Execute(SQL)
+        Execute = False
 
-    If Not RS.EOF Then
-        DB_Value = RS(0)
-    End If
+        If Not Open() Then Exit Function
 
-    RS.Close
-    Set RS = Nothing
+        mLastSQL = SQL
+        mAffectedRows = 0
 
-End Function
+        On Error Resume Next
 
-'=======================================================================
-' EXISTS
-'=======================================================================
+        mConn.Execute SQL, Records, adCmdText
 
-Function DB_Exists(SQL)
+        If Err.Number <> 0 Then
 
-    Dim RS
+            mLastError = Err.Description
+            Err.Clear
+            Exit Function
 
-    DB_Exists = False
+        End If
 
-    Set RS = Conn.Execute(SQL)
+        mAffectedRows = CLng(Records)
 
-    If Not RS.EOF Then
-        DB_Exists = True
-    End If
+        Execute = True
 
-    RS.Close
-    Set RS = Nothing
+    End Function
 
-End Function
 
-'=======================================================================
-' LAST IDENTITY
-'=======================================================================
 
-Function DB_LastIdentity()
+    Public Function Query(SQL)
 
-    DB_LastIdentity = CLng(DB_Value("SELECT @@IDENTITY"))
+        Dim RS
 
-End Function
+        If Not Open() Then
 
-'=======================================================================
-' SAFE STRING
-'=======================================================================
+            Set Query = Nothing
+            Exit Function
 
-Function DB_String(Value)
+        End If
 
-    If IsNull(Value) Then
+        mLastSQL = SQL
 
-        DB_String = ""
+        Set RS = Server.CreateObject("ADODB.Recordset")
 
-        Exit Function
+        RS.CursorLocation = adUseClient
 
-    End If
+        On Error Resume Next
 
-    DB_String = Replace(CStr(Value), "'", "''")
+        RS.Open SQL, _
+                mConn, _
+                adOpenStatic, _
+                adLockReadOnly, _
+                adCmdText
 
-End Function
+        If Err.Number <> 0 Then
 
-'=======================================================================
-' SAFE NUMBER
-'=======================================================================
+            mLastError = Err.Description
 
-Function DB_Number(Value)
+            Set RS = Nothing
 
-    If IsNull(Value) Then
+            Err.Clear
 
-        DB_Number = "NULL"
+        End If
 
-        Exit Function
+        Set Query = RS
 
-    End If
+    End Function
+ 
+     Public Function Scalar(SQL)
 
-    If Trim(CStr(Value)) = "" Then
+        Dim RS
 
-        DB_Number = "NULL"
+        Scalar = Null
 
-        Exit Function
+        Set RS = Query(SQL)
 
-    End If
+        If IsObject(RS) Then
 
-    If IsNumeric(Value) Then
+            If Not RS.EOF Then
+                Scalar = RS(0).Value
+            End If
 
-        DB_Number = Replace(CStr(Value), ",", ".")
+            RS.Close
+            Set RS = Nothing
 
-    Else
+        End If
 
-        DB_Number = "NULL"
+    End Function
 
-    End If
 
-End Function
 
-'=======================================================================
-' SAFE DATE
-'=======================================================================
+    Public Function GetRow(SQL)
 
-Function DB_Date(Value)
+        Dim RS
+        Dim D
+        Dim i
 
-    If IsDate(Value) Then
+        Set D = Server.CreateObject("Scripting.Dictionary")
+        D.CompareMode = 1
 
-        DB_Date = "'" & _
-                  Year(Value) & "-" & _
-                  Right("0" & Month(Value),2) & "-" & _
-                  Right("0" & Day(Value),2) & " " & _
-                  Right("0" & Hour(Value),2) & ":" & _
-                  Right("0" & Minute(Value),2) & ":" & _
-                  Right("0" & Second(Value),2) & "'"
+        Set RS = Query(SQL)
 
-    Else
+        If IsObject(RS) Then
 
-        DB_Date = "NULL"
+            If Not RS.EOF Then
 
-    End If
+                For i = 0 To RS.Fields.Count - 1
+                    D.Add RS.Fields(i).Name, RS.Fields(i).Value
+                Next
 
-End Function
+            End If
 
-'=======================================================================
-' CONNECTION TEST
-'=======================================================================
+            RS.Close
+            Set RS = Nothing
 
-Function DB_Test()
+        End If
 
-    On Error Resume Next
+        Set GetRow = D
 
-    DB_Test = False
+    End Function
 
-    DB_Open
 
-    If Err.Number = 0 Then
-        DB_Test = True
-    End If
 
-    Err.Clear
+    Public Function GetRows(SQL)
 
-End Function
+        Dim RS
+        Dim Rows()
+        Dim Row
+        Dim i
+        Dim n
 
-'#######################################################################
-' END OF FILE
-'#######################################################################
+        n = -1
+
+        ReDim Rows(-1)
+
+        Set RS = Query(SQL)
+
+        If IsObject(RS) Then
+
+            Do Until RS.EOF
+
+                n = n + 1
+
+                ReDim Preserve Rows(n)
+
+                Set Row = Server.CreateObject("Scripting.Dictionary")
+                Row.CompareMode = 1
+
+                For i = 0 To RS.Fields.Count - 1
+                    Row.Add RS.Fields(i).Name, RS.Fields(i).Value
+                Next
+
+                Set Rows(n) = Row
+
+                RS.MoveNext
+
+            Loop
+
+            RS.Close
+            Set RS = Nothing
+
+        End If
+
+        GetRows = Rows
+
+    End Function
+
+
+
+    Public Function RecordExists(SQL)
+
+        Dim RS
+
+        RecordExists = False
+
+        Set RS = Query(SQL)
+
+        If IsObject(RS) Then
+
+            RecordExists = Not RS.EOF
+
+            RS.Close
+            Set RS = Nothing
+
+        End If
+
+    End Function
+
+
+
+    Public Function BeginTransaction()
+
+        If Not Open() Then
+            BeginTransaction = False
+            Exit Function
+        End If
+
+        On Error Resume Next
+
+        mConn.BeginTrans
+
+        If Err.Number <> 0 Then
+
+            mLastError = Err.Description
+            BeginTransaction = False
+
+            Err.Clear
+
+            Exit Function
+
+        End If
+
+        mInTransaction = True
+
+        BeginTransaction = True
+
+    End Function
+
+
+
+    Public Function Commit()
+
+        Commit = False
+
+        If Not mInTransaction Then Exit Function
+
+        On Error Resume Next
+
+        mConn.CommitTrans
+
+        If Err.Number <> 0 Then
+
+            mLastError = Err.Description
+
+            Err.Clear
+
+            Exit Function
+
+        End If
+
+        mInTransaction = False
+
+        Commit = True
+
+    End Function
+
+
+
+    Public Function Rollback()
+
+        Rollback = False
+
+        If Not mInTransaction Then Exit Function
+
+        On Error Resume Next
+
+        mConn.RollbackTrans
+
+        If Err.Number <> 0 Then
+
+            mLastError = Err.Description
+
+            Err.Clear
+
+            Exit Function
+
+        End If
+
+        mInTransaction = False
+
+        Rollback = True
+
+    End Function
+ 
+     Public Function Escape(Value)
+
+        If IsNull(Value) Then
+
+            Escape = "NULL"
+
+        Else
+
+            Escape = "'" & Replace(CStr(Value), "'", "''") & "'"
+
+        End If
+
+    End Function
+
+
+
+    Public Function EscapeLike(Value)
+
+        Dim S
+
+        S = CStr(Value)
+
+        S = Replace(S, "'", "''")
+        S = Replace(S, "%", "[%]")
+        S = Replace(S, "_", "[_]")
+
+        EscapeLike = S
+
+    End Function
+
+
+
+    Public Function InsertID()
+
+        InsertID = Scalar("SELECT SCOPE_IDENTITY()")
+
+    End Function
+
+
+
+    Public Function ServerDate()
+
+        ServerDate = Scalar("SELECT GETDATE()")
+
+    End Function
+
+
+
+    Public Function TableExists(TableName)
+
+        TableExists = RecordExists( _
+            "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME=" & Escape(TableName))
+
+    End Function
+
+
+
+    Public Function ColumnExists(TableName, ColumnName)
+
+        ColumnExists = RecordExists( _
+            "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS " & _
+            "WHERE TABLE_NAME=" & Escape(TableName) & _
+            " AND COLUMN_NAME=" & Escape(ColumnName))
+
+    End Function
+
+
+
+    Public Function Connection()
+
+        If Open() Then
+            Set Connection = mConn
+        Else
+            Set Connection = Nothing
+        End If
+
+    End Function
+
+
+
+    Public Function RecordCount(SQL)
+
+        Dim RS
+
+        RecordCount = 0
+
+        Set RS = Query(SQL)
+
+        If IsObject(RS) Then
+
+            If Not RS.EOF Then
+
+                RS.MoveLast
+                RecordCount = RS.RecordCount
+
+            End If
+
+            RS.Close
+            Set RS = Nothing
+
+        End If
+
+    End Function
+
+
+
+    Public Function DatabaseName()
+
+        DatabaseName = Scalar("SELECT DB_NAME()")
+
+    End Function
+
+
+
+    Public Function DatabaseVersion()
+
+        DatabaseVersion = Scalar("SELECT @@VERSION")
+
+    End Function
+
+
+
+    Public Function TestConnection()
+
+        TestConnection = Open()
+
+    End Function
+
+
+
+End Class
+%>
