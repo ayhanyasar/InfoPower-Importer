@@ -3,7 +3,7 @@
 ' InfoPower Importer PRO v3.0
 ' File    : classes/class.cache.asp
 '====================================================================
-Option Explicit
+'Option Explicit
 
 Class CacheItem
 
